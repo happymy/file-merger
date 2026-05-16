@@ -9,12 +9,12 @@
   <div class="container">
     <h1>📁 File Merger Pro</h1>
 
-    <!-- 目录选择区（含拖拽） -->
+    <!-- 目录选择区（支持拖拽） -->
     <div class="drop-zone" id="dropZone">
       <div class="control-row">
         <button id="selectDirBtn">📂 选择目录</button>
-        <span id="dirPathDisplay" class="path-display">未选择目录（也可拖拽文件夹到此处）</span>
-        <button id="historyBtn" title="最近目录">📋</button>
+        <span id="dirPathDisplay" class="path-display">未选择目录（可拖拽文件夹到此处）</span>
+        <button id="historyBtn" title="最近使用的目录">📋</button>
       </div>
       <div id="historyDropdown" class="history-dropdown hidden"></div>
     </div>
@@ -23,21 +23,27 @@
     <div class="config-section">
       <div class="input-row">
         <div class="input-group">
-          <label>排除目录（每行一个 glob）</label>
-          <textarea id="excludeDirs" rows="2"></textarea>
+          <label>排除目录 <span class="hint">（每行一个 glob，如 node_modules 或 **/test/**）</span></label>
+          <div class="textarea-with-btn">
+            <textarea id="excludeDirs" rows="2"></textarea>
+            <button id="pickExcludeDirBtn" title="从文件夹选择排除目录">📁</button>
+          </div>
         </div>
         <div class="input-group">
-          <label>排除文件（每行一个 glob）</label>
-          <textarea id="excludeFiles" rows="2"></textarea>
+          <label>排除文件 <span class="hint">（每行一个 glob，如 *.log）</span></label>
+          <div class="textarea-with-btn">
+            <textarea id="excludeFiles" rows="2"></textarea>
+            <button id="pickExcludeFileBtn" title="选择文件以排除">📄</button>
+          </div>
         </div>
       </div>
       <div class="input-row">
         <div class="input-group">
-          <label>白名单扩展名（逗号分隔，如 js,ts,md，留空则全部包含）</label>
+          <label>白名单扩展名 <span class="hint">（逗号分隔，留空则包含全部）</span></label>
           <input type="text" id="whiteListExts" placeholder="js,ts,json,md">
         </div>
         <div class="input-group">
-          <label>文件大小上限（KB，0 不限制）</label>
+          <label>文件大小上限 <span class="hint">（KB，0 不限制）</span></label>
           <input type="number" id="maxFileSizeKB" min="0" value="0">
         </div>
       </div>
@@ -50,11 +56,11 @@
         </label>
       </div>
       <div class="input-group">
-        <label>自定义尾部内容（Markdown）</label>
+        <label>自定义尾部内容 <span class="hint">（Markdown 格式）</span></label>
         <textarea id="customFooter" rows="3" placeholder="追加在文件末尾的内容..."></textarea>
       </div>
       <div class="input-group">
-        <label>输出文件名模板（支持 {folderName}、{timestamp}）</label>
+        <label>输出文件名模板 <span class="hint">（支持 {folderName}、{timestamp}）</span></label>
         <input type="text" id="outputFileName" value="merged-{timestamp}.md">
       </div>
     </div>

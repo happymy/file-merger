@@ -12,8 +12,8 @@ const {
   excludeFiles = [],
   excludeBinary = false,
   ignoreHidden = false,
-  whiteListExts = [],   // 如 ["js","ts","md"]
-  maxFileSizeKB = 0,    // 0 表示不限制
+  whiteListExts = [],
+  maxFileSizeKB = 0,
 } = options;
 
 function shouldExcludeDir(relativeDir) {
@@ -30,7 +30,6 @@ function isHidden(entryPath) {
   return path.basename(entryPath).startsWith('.');
 }
 
-// 扫描所有文件
 function collectFiles() {
   const results = [];
   function walk(currentDir, relativePrefix) {
@@ -44,7 +43,6 @@ function collectFiles() {
       const fullPath = path.join(currentDir, entry.name);
       const relPath = relativePrefix ? path.posix.join(relativePrefix, entry.name) : entry.name;
 
-      // 忽略隐藏
       if (ignoreHidden && isHidden(fullPath)) continue;
 
       if (entry.isDirectory()) {
@@ -54,13 +52,11 @@ function collectFiles() {
         if (entry.name === '.file-merger-config.json') continue;
         if (shouldExcludeFile(relPath)) continue;
 
-        // 白名单扩展名检查
         if (whiteListExts.length > 0) {
           const ext = path.extname(entry.name).slice(1).toLowerCase();
           if (!whiteListExts.includes(ext)) continue;
         }
 
-        // 文件大小限制
         if (maxFileSizeKB > 0) {
           try {
             const stat = fs.statSync(fullPath);
@@ -78,22 +74,16 @@ function collectFiles() {
   return results;
 }
 
-// 读取文件并转码
 function readFileContent(fullPath) {
   try {
     const buffer = fs.readFileSync(fullPath);
     if (excludeBinary && isBinaryFileSync(fullPath)) {
-      return null; // 被排除
+      return null;
     }
     const isBin = isBinaryFileSync(fullPath);
     if (isBin) {
-      return {
-        type: 'binary',
-        base64: buffer.toString('base64'),
-        size: buffer.length
-      };
+      return { type: 'binary', base64: buffer.toString('base64'), size: buffer.length };
     }
-
     // 编码检测
     const detected = jschardet.detect(buffer);
     let text;
@@ -112,7 +102,6 @@ function readFileContent(fullPath) {
   }
 }
 
-// 推断语言标记
 function getLanguageFromExt(filename) {
   const ext = filename.split('.').pop().toLowerCase();
   const map = {
@@ -126,7 +115,6 @@ function getLanguageFromExt(filename) {
   return map[ext] || '';
 }
 
-// 主执行
 (async () => {
   try {
     const files = collectFiles();
@@ -137,7 +125,6 @@ function getLanguageFromExt(filename) {
       const file = files[i];
       const content = readFileContent(file.fullPath);
       if (content === null) {
-        // 二进制被排除
         parentPort.postMessage({ type: 'progress', data: { current: i+1, total } });
         continue;
       }
@@ -154,11 +141,9 @@ function getLanguageFromExt(filename) {
         md += `\`\`\`\n[读取错误: ${content.message}]\n\`\`\`\n\n`;
       }
 
-      // 发送进度
       parentPort.postMessage({ type: 'progress', data: { current: i+1, total } });
     }
 
-    // 追加自定义尾部
     if (options.customFooter && options.customFooter.trim()) {
       md += `\n---\n\n${options.customFooter}\n`;
     }

@@ -101,6 +101,41 @@ ipcMain.handle('clear-history', () => {
   return [];
 });
 
+// 选择排除目录（图形化）
+ipcMain.handle('pick-exclude-dir', async (event, rootDir) => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory']
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  const selected = result.filePaths[0];
+  // 安全检查：必须在根目录内
+  const rel = path.relative(rootDir, selected);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) {
+    throw new Error('选择的目录不在当前工作目录内');
+  }
+  if (!rel) return null; // 选了根目录本身
+  const parts = rel.split(path.sep);
+  // 推荐 glob：如果深度为 1，直接填目录名；否则使用 **/dirname/**
+  const suggestion = parts.length === 1 ? parts[0] : `**/${parts[parts.length-1]}/**`;
+  return { relative: rel, suggestion };
+});
+
+// 选择排除文件（图形化）
+ipcMain.handle('pick-exclude-file', async (event, rootDir) => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile']
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  const selected = result.filePaths[0];
+  const rel = path.relative(rootDir, selected);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) {
+    throw new Error('选择的文件不在当前工作目录内');
+  }
+  if (!rel) return null;
+  // 直接返回相对路径，用户可手动加通配符
+  return { relative: rel, suggestion: rel };
+});
+
 // 启动 Worker 进行扫描和内容处理
 ipcMain.handle('start-merge', async (event, dirPath, options) => {
   return new Promise((resolve, reject) => {
@@ -149,4 +184,9 @@ ipcMain.handle('write-file', async (event, filePath, content) => {
 // 在文件夹中显示
 ipcMain.handle('show-item-in-folder', (event, fullPath) => {
   shell.showItemInFolder(fullPath);
+});
+
+// 获取路径 basename（供渲染进程使用）
+ipcMain.handle('path-basename', (event, filePath) => {
+  return path.basename(filePath);
 });

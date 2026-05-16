@@ -9,7 +9,8 @@ let currentConfig = {
   customFooter: '',
   outputFileName: 'merged-{timestamp}.md'
 };
-let mergedMarkdown = ''; // 缓存生成的内容
+let mergedMarkdown = '';   // 缓存生成的内容
+let isDirty = true;        // 标记配置是否已修改，需重新预览
 
 // UI 元素
 const dirPathDisplay = document.getElementById('dirPathDisplay');
@@ -31,8 +32,10 @@ const statusDiv = document.getElementById('status');
 const progressContainer = document.getElementById('progressContainer');
 const progressFill = document.getElementById('progressFill');
 const progressText = document.getElementById('progressText');
+const pickExcludeDirBtn = document.getElementById('pickExcludeDirBtn');
+const pickExcludeFileBtn = document.getElementById('pickExcludeFileBtn');
 
-// 历史记录下拉
+// ========== 历史记录 ==========
 let recentDirs = [];
 
 async function refreshHistory() {
@@ -67,27 +70,24 @@ historyBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   historyDropdown.classList.toggle('hidden');
 });
-
 document.addEventListener('click', () => historyDropdown.classList.add('hidden'));
 
-// 选择目录（通过对话框）
+// ========== 目录选择 ==========
 selectDirBtn.addEventListener('click', async () => {
   const dir = await window.electronAPI.selectDirectory();
   if (dir) selectDirectory(dir);
 });
 
-// 统一设置目录
 async function selectDirectory(dirPath) {
   currentDir = dirPath;
   if (dirPathDisplay) dirPathDisplay.textContent = dirPath;
   
   // 加载配置
-  const savedConfig = await window.electronAPI.readConfig(dirPath);
-  if (savedConfig) {
-    currentConfig = savedConfig;
+  const saved = await window.electronAPI.readConfig(dirPath);
+  if (saved) {
+    currentConfig = saved;
     populateUIFromConfig();
   } else {
-    // 重置为默认
     currentConfig = {
       excludeDirs: [],
       excludeFiles: [],
@@ -101,19 +101,18 @@ async function selectDirectory(dirPath) {
     populateUIFromConfig();
   }
   
-  // 添加到历史
   await window.electronAPI.addHistory(dirPath);
   refreshHistory();
   
-  // 清空预览和进度
+  // 清空预览和缓存
   if (previewArea) previewArea.textContent = '';
   mergedMarkdown = '';
+  isDirty = true;
   if (saveBtn) saveBtn.disabled = true;
   hideProgress();
   if (statusDiv) statusDiv.textContent = '';
 }
 
-// UI 填充
 function populateUIFromConfig() {
   if (excludeDirsTextarea) excludeDirsTextarea.value = (currentConfig.excludeDirs || []).join('\n');
   if (excludeFilesTextarea) excludeFilesTextarea.value = (currentConfig.excludeFiles || []).join('\n');
@@ -146,9 +145,73 @@ async function saveConfigToDir() {
   const config = getConfigFromUI();
   await window.electronAPI.saveConfig(currentDir, config);
   currentConfig = config;
+  isDirty = false;   // 已保存与当前一致
 }
 
-// 进度条
+// 标记配置已修改
+function markDirty() {
+  if (!isDirty) {
+    isDirty = true;
+    mergedMarkdown = '';
+    if (saveBtn) saveBtn.disabled = true;
+    if (statusDiv) statusDiv.textContent = '配置已更改，需重新预览';
+  }
+}
+
+// 为所有输入绑定 change/input 事件
+if (excludeDirsTextarea) excludeDirsTextarea.addEventListener('input', markDirty);
+if (excludeFilesTextarea) excludeFilesTextarea.addEventListener('input', markDirty);
+if (whiteListExtsInput) whiteListExtsInput.addEventListener('input', markDirty);
+if (maxFileSizeKBInput) maxFileSizeKBInput.addEventListener('input', markDirty);
+if (customFooterTextarea) customFooterTextarea.addEventListener('input', markDirty);
+if (outputFileNameInput) outputFileNameInput.addEventListener('input', markDirty);
+
+if (excludeBinaryCheckbox) excludeBinaryCheckbox.addEventListener('change', markDirty);
+if (ignoreHiddenCheckbox) ignoreHiddenCheckbox.addEventListener('change', markDirty);
+
+// ========== 排除选择器 ==========
+if (pickExcludeDirBtn) {
+  pickExcludeDirBtn.addEventListener('click', async () => {
+    if (!currentDir) {
+      alert('请先选择工作目录');
+      return;
+    }
+    try {
+      const result = await window.electronAPI.pickExcludeDir(currentDir);
+      if (result && excludeDirsTextarea) {
+        // 添加到 textarea 末尾
+        const lines = excludeDirsTextarea.value.split('\n').filter(Boolean);
+        lines.push(result.suggestion);
+        excludeDirsTextarea.value = lines.join('\n') + '\n';
+        markDirty();
+      }
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+}
+
+if (pickExcludeFileBtn) {
+  pickExcludeFileBtn.addEventListener('click', async () => {
+    if (!currentDir) {
+      alert('请先选择工作目录');
+      return;
+    }
+    try {
+      const result = await window.electronAPI.pickExcludeFile(currentDir);
+      if (result && excludeFilesTextarea) {
+        const lines = excludeFilesTextarea.value.split('\n').filter(Boolean);
+        lines.push(result.suggestion);
+        excludeFilesTextarea.value = lines.join('\n') + '\n';
+        markDirty();
+      }
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+}
+
+// ========== 进度条 ==========
 function showProgress() {
   if (progressContainer) progressContainer.classList.remove('hidden');
   if (progressFill) progressFill.style.width = '0%';
@@ -172,26 +235,24 @@ if (window.electronAPI && window.electronAPI.onMergeProgress) {
   });
 }
 
-// 生成输出文件名
-function generateOutputFileName() {
-  // 注意：在浏览器环境中没有 nodejs 的 path 模块，除非预加载或 polyfill
-  // 这里简单处理，假设 currentDir 是字符串
-  const folderName = currentDir ? currentDir.replace(/^.*[\\\/]/, '') : ''; 
+// ========== 生成文件名 ==========
+async function generateOutputFileName() {
+  const folderName = currentDir ? await window.electronAPI.pathBasename(currentDir) : 'folder';
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   let name = currentConfig.outputFileName || 'merged.md';
-  name = name.replace('{folderName}', folderName || 'folder');
+  name = name.replace('{folderName}', folderName);
   name = name.replace('{timestamp}', timestamp);
   return name;
 }
 
-// 预览
+// ========== 预览 ==========
 if (previewBtn) {
   previewBtn.addEventListener('click', async () => {
     if (!currentDir) {
       alert('请先选择目录');
       return;
     }
-    await saveConfigToDir();
+    await saveConfigToDir();   // 保存当前配置
     showProgress();
     if (saveBtn) saveBtn.disabled = true;
     if (statusDiv) statusDiv.textContent = '正在扫描并处理文件...';
@@ -207,6 +268,7 @@ if (previewBtn) {
       }
       if (saveBtn) saveBtn.disabled = false;
       if (statusDiv) statusDiv.textContent = '预览完成，可点击保存按钮导出';
+      isDirty = false; // 预览成功，缓存与当前配置一致
     } catch (err) {
       if (previewArea) previewArea.textContent = `错误: ${err.message}`;
       if (statusDiv) statusDiv.textContent = '合并失败';
@@ -216,18 +278,20 @@ if (previewBtn) {
   });
 }
 
-// 保存
+// ========== 保存 ==========
 if (saveBtn) {
   saveBtn.addEventListener('click', async () => {
     if (!currentDir || !mergedMarkdown) return;
-    const defaultName = generateOutputFileName();
-    const filePath = await window.electronAPI.saveFileDialog(defaultName);
+    const defaultName = await generateOutputFileName();
+    // 默认保存到当前选择的目录下
+    const separator = currentDir.endsWith('/') || currentDir.endsWith('\\') ? '' : '/';
+    const defaultPath = `${currentDir}${separator}${defaultName}`;
+    const filePath = await window.electronAPI.saveFileDialog(defaultPath);
     if (!filePath) return;
 
     const success = await window.electronAPI.writeFile(filePath, mergedMarkdown);
     if (success) {
       if (statusDiv) statusDiv.textContent = `已保存到 ${filePath}`;
-      // 在文件夹中显示
       await window.electronAPI.showItemInFolder(filePath);
     } else {
       if (statusDiv) statusDiv.textContent = '保存失败';
@@ -236,7 +300,7 @@ if (saveBtn) {
   });
 }
 
-// ---------- 拖拽功能 ----------
+// ========== 拖拽支持 ==========
 const dropZone = document.getElementById('dropZone');
 if (dropZone) {
   dropZone.addEventListener('dragover', (e) => {
@@ -257,17 +321,16 @@ if (dropZone) {
     dropZone.classList.remove('dragover');
     const files = e.dataTransfer.files;
     if (files.length > 0) {
-      // 在 Electron 中，files[0].path 可能可用，取决于上下文和设置
-      const droppedPath = files[0].path; 
+      const droppedPath = files[0].path;
       if (droppedPath) {
-          const isDir = await window.electronAPI.isDirectory(droppedPath);
-          if (isDir) {
-            selectDirectory(droppedPath);
-          } else {
-            alert('请拖拽一个文件夹，而不是文件');
-          }
+        const isDir = await window.electronAPI.isDirectory(droppedPath);
+        if (isDir) {
+          selectDirectory(droppedPath);
+        } else {
+          alert('请拖拽一个文件夹，而不是文件');
+        }
       } else {
-         alert('无法获取拖拽路径，请确保在 Electron 环境中运行');
+        alert('无法获取拖拽路径，请确保在 Electron 环境中运行');
       }
     }
   });
