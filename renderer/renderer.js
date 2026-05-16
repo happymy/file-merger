@@ -20,14 +20,14 @@ const i18n = {
     maxSizeHint: '(KB, 0 = no limit)',
     excludeBinary: 'Exclude binary files',
     ignoreHidden: 'Ignore hidden files/folders',
-    customFooterLabel: 'Custom footer',
+    customFooterLabel: 'Custom footer (end of file)',
     customFooterHint: '(Markdown)',
-    footerPlaceholder: 'Content appended at the end...',
+    footerPlaceholder: 'Content appended at the very end...',
     outputNameLabel: 'Output filename template',
     outputNameHint: '(supports {folderName}, {timestamp})',
     previewBtn: '🔍 Scan & Preview',
     saveBtn: '💾 Merge & Save',
-    previewTitle: 'Preview (first 200 lines)',
+    previewTitle: 'Preview',
     historyClear: 'Clear history',
     noHistory: 'No history',
     scanError: 'Please select a directory first.',
@@ -41,7 +41,10 @@ const i18n = {
     dropTypeErrorDir: 'Expected a folder.',
     dropTypeErrorFile: 'Expected a file.',
     outsideRoot: 'Selected path is outside the working directory.',
-    rootSelected: 'You selected the root directory itself, which is not allowed.'
+    rootSelected: 'You selected the root directory itself, which is not allowed.',
+    copySuccess: 'Copied!',
+    copyFailed: 'Copy failed',
+    splitTab: (i, chars) => `Part ${i} (${chars} chars)`
   },
   zh: {
     title: '📁 文件合并工具',
@@ -63,19 +66,19 @@ const i18n = {
     maxSizeHint: '（KB，0 表示无限制）',
     excludeBinary: '排除二进制文件',
     ignoreHidden: '忽略隐藏文件/文件夹',
-    customFooterLabel: '自定义尾部内容',
+    customFooterLabel: '自定义尾部内容（文件最末尾）',
     customFooterHint: '（Markdown 格式）',
     footerPlaceholder: '追加在文件末尾的内容...',
     outputNameLabel: '输出文件名模板',
     outputNameHint: '（支持 {folderName}、{timestamp}）',
     previewBtn: '🔍 扫描并预览',
     saveBtn: '💾 合并并保存',
-    previewTitle: '预览（前 200 行）',
+    previewTitle: '预览',
     historyClear: '清除历史',
     noHistory: '无历史记录',
     scanError: '请先选择目录。',
     processing: '正在扫描并处理文件...',
-    previewDone: '预览完成，可点击保存。',
+    previewDone: '预览完成，可保存。',
     mergeFailed: '合并失败。',
     configChanged: '配置已更改，请重新预览。',
     savedTo: '已保存到 ',
@@ -84,47 +87,36 @@ const i18n = {
     dropTypeErrorDir: '需要文件夹。',
     dropTypeErrorFile: '需要文件。',
     outsideRoot: '所选路径不在工作目录内。',
-    rootSelected: '不能选择根目录本身。'
+    rootSelected: '不能选择根目录本身。',
+    copySuccess: '已复制！',
+    copyFailed: '复制失败',
+    splitTab: (i, chars) => `分段 ${i} (${chars} 字符)`
   }
 };
 
 let currentLang = localStorage.getItem('lang') || (navigator.language.startsWith('zh') ? 'zh' : 'en');
-function t(key) {
-  return i18n[currentLang][key] || key;
+function t(key, ...args) {
+  let val = i18n[currentLang][key] || key;
+  if (typeof val === 'function') return val(...args);
+  return val;
 }
 
 function applyLanguage() {
-  // 设置 data-i18n 元素的文本
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     if (el.tagName === 'BUTTON' || el.tagName === 'LABEL' || el.tagName === 'SPAN' || el.tagName === 'H1' || el.tagName === 'H3') {
       el.textContent = t(key);
-    } else {
-      el.innerHTML = t(key);
     }
   });
-  // 设置 placeholder
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-    const key = el.getAttribute('data-i18n-placeholder');
-    el.placeholder = t(key);
+    el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
   });
-  // 更新语言按钮激活状态
   document.getElementById('langEnBtn').classList.toggle('active', currentLang === 'en');
   document.getElementById('langZhBtn').classList.toggle('active', currentLang === 'zh');
-  // 更新状态消息（如果有正在显示的状态）
-  // 注意：状态消息为动态，需通过更新状态函数重新设置
 }
 
-document.getElementById('langEnBtn').addEventListener('click', () => {
-  currentLang = 'en';
-  localStorage.setItem('lang', 'en');
-  applyLanguage();
-});
-document.getElementById('langZhBtn').addEventListener('click', () => {
-  currentLang = 'zh';
-  localStorage.setItem('lang', 'zh');
-  applyLanguage();
-});
+document.getElementById('langEnBtn').addEventListener('click', () => { currentLang = 'en'; localStorage.setItem('lang', 'en'); applyLanguage(); });
+document.getElementById('langZhBtn').addEventListener('click', () => { currentLang = 'zh'; localStorage.setItem('lang', 'zh'); applyLanguage(); });
 
 // ==================== 主逻辑 ====================
 let currentDir = null;
@@ -135,16 +127,25 @@ let currentConfig = {
   ignoreHidden: false,
   whiteListExts: [],
   maxFileSizeKB: 0,
+  compressOutput: false,
+  maxCharsPerPart: 0,
+  splitPartFooter: '',
   customFooter: '',
   outputFileName: 'merged-{timestamp}.md'
 };
 let mergedMarkdown = '';
+let compressedMarkdown = '';
+let parts = [];
+let currentPartIndex = 0;
 let isDirty = true;
 
 // DOM 元素
 const dirPathDisplay = document.getElementById('dirPathDisplay');
 const excludeBinaryCheckbox = document.getElementById('excludeBinary');
 const ignoreHiddenCheckbox = document.getElementById('ignoreHidden');
+const compressOutputCheckbox = document.getElementById('compressOutput');
+const maxCharsPerPartInput = document.getElementById('maxCharsPerPart');
+const splitPartFooterTextarea = document.getElementById('splitPartFooter');
 const whiteListExtsInput = document.getElementById('whiteListExts');
 const maxFileSizeKBInput = document.getElementById('maxFileSizeKB');
 const customFooterTextarea = document.getElementById('customFooter');
@@ -155,6 +156,8 @@ const historyDropdown = document.getElementById('historyDropdown');
 const previewBtn = document.getElementById('previewBtn');
 const saveBtn = document.getElementById('saveBtn');
 const previewArea = document.getElementById('previewArea');
+const previewTabs = document.getElementById('previewTabs');
+const copyCurrentPartBtn = document.getElementById('copyCurrentPartBtn');
 const statusDiv = document.getElementById('status');
 const progressContainer = document.getElementById('progressContainer');
 const progressFill = document.getElementById('progressFill');
@@ -171,12 +174,7 @@ const pickExcludeFileBtn = document.getElementById('pickExcludeFileBtn');
 
 // ========== 历史记录 ==========
 let recentDirs = [];
-
-async function refreshHistory() {
-  recentDirs = await window.electronAPI.getHistory();
-  renderHistoryDropdown();
-}
-
+async function refreshHistory() { recentDirs = await window.electronAPI.getHistory(); renderHistoryDropdown(); }
 function renderHistoryDropdown() {
   historyDropdown.innerHTML = '';
   if (recentDirs.length === 0) {
@@ -191,19 +189,11 @@ function renderHistoryDropdown() {
     const clearDiv = document.createElement('div');
     clearDiv.textContent = t('historyClear');
     clearDiv.style.fontStyle = 'italic';
-    clearDiv.addEventListener('click', async () => {
-      await window.electronAPI.clearHistory();
-      refreshHistory();
-      historyDropdown.classList.add('hidden');
-    });
+    clearDiv.addEventListener('click', async () => { await window.electronAPI.clearHistory(); refreshHistory(); historyDropdown.classList.add('hidden'); });
     historyDropdown.appendChild(clearDiv);
   }
 }
-
-historyBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  historyDropdown.classList.toggle('hidden');
-});
+historyBtn.addEventListener('click', e => { e.stopPropagation(); historyDropdown.classList.toggle('hidden'); });
 document.addEventListener('click', () => historyDropdown.classList.add('hidden'));
 
 // ========== 目录选择 ==========
@@ -211,49 +201,30 @@ selectDirBtn.addEventListener('click', async () => {
   const dir = await window.electronAPI.selectDirectory();
   if (dir) selectDirectory(dir);
 });
-
 async function selectDirectory(dirPath) {
   currentDir = dirPath;
   dirPathDisplay.textContent = dirPath;
   const saved = await window.electronAPI.readConfig(dirPath);
-  if (saved) {
-    currentConfig = migrateConfig(saved);
-  } else {
-    currentConfig = {
-      excludeDirs: [],
-      excludeFiles: [],
-      excludeBinary: false,
-      ignoreHidden: false,
-      whiteListExts: [],
-      maxFileSizeKB: 0,
-      customFooter: '',
-      outputFileName: 'merged-{timestamp}.md'
-    };
-  }
+  currentConfig = saved ? migrateConfig(saved) : {
+    excludeDirs: [], excludeFiles: [], excludeBinary: false, ignoreHidden: false, compressOutput: false,
+    maxCharsPerPart: 0, splitPartFooter: '',
+    whiteListExts: [], maxFileSizeKB: 0, customFooter: '', outputFileName: 'merged-{timestamp}.md'
+  };
   populateUIFromConfig();
   await window.electronAPI.addHistory(dirPath);
   refreshHistory();
-  previewArea.textContent = '';
-  mergedMarkdown = '';
-  isDirty = true;
-  saveBtn.disabled = true;
-  hideProgress();
-  statusDiv.textContent = '';
+  resetPreview();
 }
 
 function migrateConfig(cfg) {
-  const newCfg = { ...cfg };
-  if (Array.isArray(newCfg.excludeDirs)) {
-    newCfg.excludeDirs = newCfg.excludeDirs.map(item => typeof item === 'string' ? { pattern: item, enabled: true } : item);
-  } else {
-    newCfg.excludeDirs = [];
-  }
-  if (Array.isArray(newCfg.excludeFiles)) {
-    newCfg.excludeFiles = newCfg.excludeFiles.map(item => typeof item === 'string' ? { pattern: item, enabled: true } : item);
-  } else {
-    newCfg.excludeFiles = [];
-  }
-  return newCfg;
+  return {
+    ...cfg,
+    excludeDirs: (cfg.excludeDirs || []).map(i => typeof i === 'string' ? { pattern: i, enabled: true } : i),
+    excludeFiles: (cfg.excludeFiles || []).map(i => typeof i === 'string' ? { pattern: i, enabled: true } : i),
+    compressOutput: cfg.compressOutput || false,
+    maxCharsPerPart: cfg.maxCharsPerPart || 0,
+    splitPartFooter: cfg.splitPartFooter || ''
+  };
 }
 
 // ========== 标签渲染 ==========
@@ -301,6 +272,9 @@ function populateUIFromConfig() {
   renderTags(excludeFilesContainer, currentConfig.excludeFiles);
   excludeBinaryCheckbox.checked = currentConfig.excludeBinary;
   ignoreHiddenCheckbox.checked = currentConfig.ignoreHidden;
+  compressOutputCheckbox.checked = currentConfig.compressOutput || false;
+  maxCharsPerPartInput.value = currentConfig.maxCharsPerPart || 0;
+  splitPartFooterTextarea.value = currentConfig.splitPartFooter || '';
   whiteListExtsInput.value = (currentConfig.whiteListExts || []).join(',');
   maxFileSizeKBInput.value = currentConfig.maxFileSizeKB || 0;
   customFooterTextarea.value = currentConfig.customFooter || '';
@@ -308,14 +282,16 @@ function populateUIFromConfig() {
 }
 
 function getConfigFromUI() {
-  const whiteListRaw = whiteListExtsInput.value.trim();
-  const whiteListExts = whiteListRaw ? whiteListRaw.split(',').map(s => s.trim().toLowerCase()) : [];
   return {
+    ...currentConfig,
     excludeDirs: currentConfig.excludeDirs.slice(),
     excludeFiles: currentConfig.excludeFiles.slice(),
     excludeBinary: excludeBinaryCheckbox.checked,
     ignoreHidden: ignoreHiddenCheckbox.checked,
-    whiteListExts,
+    compressOutput: compressOutputCheckbox.checked,
+    maxCharsPerPart: parseInt(maxCharsPerPartInput.value) || 0,
+    splitPartFooter: splitPartFooterTextarea.value,
+    whiteListExts: whiteListExtsInput.value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean),
     maxFileSizeKB: parseInt(maxFileSizeKBInput.value) || 0,
     customFooter: customFooterTextarea.value,
     outputFileName: outputFileNameInput.value.trim() || 'merged-{timestamp}.md'
@@ -324,180 +300,168 @@ function getConfigFromUI() {
 
 async function saveConfigToDir() {
   if (!currentDir) return;
-  const config = getConfigFromUI();
-  await window.electronAPI.saveConfig(currentDir, config);
-  currentConfig = config;
+  const cfg = getConfigFromUI();
+  await window.electronAPI.saveConfig(currentDir, cfg);
+  currentConfig = cfg;
   isDirty = false;
 }
 
 function markDirty() {
   if (!isDirty) {
     isDirty = true;
-    mergedMarkdown = '';
+    resetPreview();
     saveBtn.disabled = true;
     statusDiv.textContent = t('configChanged');
   }
 }
 
-// 监听其他输入的变化
-[
-  excludeBinaryCheckbox, ignoreHiddenCheckbox, whiteListExtsInput,
-  maxFileSizeKBInput, customFooterTextarea, outputFileNameInput
-].forEach(el => {
+const inputsToWatch = [
+  excludeBinaryCheckbox, ignoreHiddenCheckbox, compressOutputCheckbox, maxCharsPerPartInput,
+  splitPartFooterTextarea, whiteListExtsInput, maxFileSizeKBInput, customFooterTextarea, outputFileNameInput
+];
+inputsToWatch.forEach(el => {
   el.addEventListener('input', markDirty);
   el.addEventListener('change', markDirty);
 });
 
+function resetPreview() {
+  mergedMarkdown = '';
+  compressedMarkdown = '';
+  parts = [];
+  currentPartIndex = 0;
+  previewArea.textContent = '';
+  previewTabs.innerHTML = '';
+}
+
 // ========== 添加排除项 ==========
 function addExcludeItem(container, itemsArray, inputElement) {
   const val = inputElement.value.trim();
-  if (!val) return;
-  if (itemsArray.some(item => item.pattern === val)) {
-    inputElement.value = '';
-    return;
-  }
+  if (!val || itemsArray.some(i => i.pattern === val)) { inputElement.value = ''; return; }
   itemsArray.push({ pattern: val, enabled: true });
   markDirty();
   renderTags(container, itemsArray);
   inputElement.value = '';
 }
+addExcludeDirBtn.addEventListener('click', () => addExcludeItem(excludeDirsContainer, currentConfig.excludeDirs, newExcludeDirInput));
+addExcludeFileBtn.addEventListener('click', () => addExcludeItem(excludeFilesContainer, currentConfig.excludeFiles, newExcludeFileInput));
+newExcludeDirInput.addEventListener('keypress', e => { if (e.key === 'Enter') addExcludeItem(excludeDirsContainer, currentConfig.excludeDirs, newExcludeDirInput); });
+newExcludeFileInput.addEventListener('keypress', e => { if (e.key === 'Enter') addExcludeItem(excludeFilesContainer, currentConfig.excludeFiles, newExcludeFileInput); });
 
-addExcludeDirBtn.addEventListener('click', () => {
-  addExcludeItem(excludeDirsContainer, currentConfig.excludeDirs, newExcludeDirInput);
-});
-addExcludeFileBtn.addEventListener('click', () => {
-  addExcludeItem(excludeFilesContainer, currentConfig.excludeFiles, newExcludeFileInput);
-});
-
-newExcludeDirInput.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') addExcludeItem(excludeDirsContainer, currentConfig.excludeDirs, newExcludeDirInput);
-});
-newExcludeFileInput.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') addExcludeItem(excludeFilesContainer, currentConfig.excludeFiles, newExcludeFileInput);
-});
-
-// ========== 图形化选择排除项 ==========
 async function pickExcludeAndAdd(isDirectory) {
-  if (!currentDir) {
-    alert(t('scanError'));
-    return;
-  }
-  const result = await window.electronAPI.pickExcludeItem(currentDir, isDirectory);
-  if (!result) return;
-  if (result.error) {
-    alert(result.error.includes('root') ? t('rootSelected') : t('outsideRoot'));
-    return;
-  }
-  if (result.suggestion) {
-    const itemsArray = isDirectory ? currentConfig.excludeDirs : currentConfig.excludeFiles;
-    const container = isDirectory ? excludeDirsContainer : excludeFilesContainer;
-    if (!itemsArray.some(item => item.pattern === result.suggestion)) {
-      itemsArray.push({ pattern: result.suggestion, enabled: true });
-      markDirty();
-      renderTags(container, itemsArray);
-    }
-  }
+  if (!currentDir) return alert(t('scanError'));
+  const res = await window.electronAPI.pickExcludeItem(currentDir, isDirectory);
+  if (!res || !res.suggestion) return alert(res.error ? (res.error.includes('root') ? t('rootSelected') : t('outsideRoot')) : '');
+  const arr = isDirectory ? currentConfig.excludeDirs : currentConfig.excludeFiles;
+  const cont = isDirectory ? excludeDirsContainer : excludeFilesContainer;
+  if (!arr.some(i => i.pattern === res.suggestion)) { arr.push({ pattern: res.suggestion, enabled: true }); markDirty(); renderTags(cont, arr); }
 }
-
 pickExcludeDirBtn.addEventListener('click', () => pickExcludeAndAdd(true));
 pickExcludeFileBtn.addEventListener('click', () => pickExcludeAndAdd(false));
 
-// ========== 拖拽添加排除项 ==========
 function setupDropTarget(container, isDirectory) {
-  container.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    container.classList.add('dragover');
-  });
-  container.addEventListener('dragleave', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    container.classList.remove('dragover');
-  });
-  container.addEventListener('drop', async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    container.classList.remove('dragover');
-
-    if (!currentDir) {
-      alert(t('scanError'));
-      return;
-    }
-
+  container.addEventListener('dragover', e => { e.preventDefault(); container.classList.add('dragover'); });
+  container.addEventListener('dragleave', () => container.classList.remove('dragover'));
+  container.addEventListener('drop', async e => {
+    e.preventDefault(); container.classList.remove('dragover');
+    if (!currentDir) return alert(t('scanError'));
     const files = e.dataTransfer.files;
-    if (files.length === 0) return;
+    if (!files.length) return;
     const droppedPath = files[0].path;
-
-    let isDroppedItemDir;
-    try {
-      isDroppedItemDir = await window.electronAPI.isDirectory(droppedPath);
-    } catch {
-      alert('Unable to access dropped item.');
-      return;
-    }
-    if (isDirectory && !isDroppedItemDir) {
-      alert(t('dropTypeErrorDir'));
-      return;
-    }
-    if (!isDirectory && isDroppedItemDir) {
-      alert(t('dropTypeErrorFile'));
-      return;
-    }
-
-    const result = await window.electronAPI.suggestExcludeGlob(currentDir, droppedPath);
-    if (result.error) {
-      alert(result.error.includes('root') ? t('rootSelected') : t('outsideRoot'));
-      return;
-    }
-    if (result.suggestion) {
-      const itemsArray = isDirectory ? currentConfig.excludeDirs : currentConfig.excludeFiles;
-      if (!itemsArray.some(item => item.pattern === result.suggestion)) {
-        itemsArray.push({ pattern: result.suggestion, enabled: true });
-        markDirty();
-        renderTags(container, itemsArray);
-      }
-    }
+    let isDir;
+    try { isDir = await window.electronAPI.isDirectory(droppedPath); } catch { return alert('Unable to access item.'); }
+    if (isDirectory && !isDir) return alert(t('dropTypeErrorDir'));
+    if (!isDirectory && isDir) return alert(t('dropTypeErrorFile'));
+    const res = await window.electronAPI.suggestExcludeGlob(currentDir, droppedPath);
+    if (res.error) return alert(res.error.includes('root') ? t('rootSelected') : t('outsideRoot'));
+    const arr = isDirectory ? currentConfig.excludeDirs : currentConfig.excludeFiles;
+    if (!arr.some(i => i.pattern === res.suggestion)) { arr.push({ pattern: res.suggestion, enabled: true }); markDirty(); renderTags(container, arr); }
   });
 }
-
 setupDropTarget(excludeDirsContainer, true);
 setupDropTarget(excludeFilesContainer, false);
 
-// ========== 进度条 ==========
-function showProgress() {
-  progressContainer.classList.remove('hidden');
-  progressFill.style.width = '0%';
-  progressText.textContent = '0%';
+// ========== 压缩与切分 ==========
+function compressMarkdown(md) {
+  return md
+    .replace(/```\w+\n/g, '```\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]+$/gm, '')
+    .replace(/^\s+$/gm, '');
 }
-function hideProgress() {
-  progressContainer.classList.add('hidden');
+
+function splitMarkdown(md, maxChars, partFooter) {
+  if (!maxChars || maxChars <= 0) {
+    return [md]; // 不拆分，不分段尾部
+  }
+
+  const blocks = md.split(/(?=^## )/m);
+  const result = [];
+  let current = '';
+
+  for (const block of blocks) {
+    if (!block.trim()) continue;
+    if (current.length + block.length <= maxChars) {
+      current += block;
+    } else {
+      if (current) result.push(current);
+      current = block;
+      while (current.length > maxChars) {
+        result.push(current.substring(0, maxChars));
+        current = current.substring(maxChars);
+      }
+    }
+  }
+  if (current) result.push(current);
+
+  // 为除最后一个分段外的所有分段添加尾部
+  if (partFooter && result.length > 1) {
+    for (let i = 0; i < result.length - 1; i++) {
+      result[i] += '\n\n' + partFooter + '\n';
+    }
+  }
+
+  return result;
 }
+
+function updatePartsView() {
+  const md = compressOutputCheckbox.checked ? compressedMarkdown : mergedMarkdown;
+  const footer = splitPartFooterTextarea.value;
+  parts = splitMarkdown(md, parseInt(maxCharsPerPartInput.value) || 0, footer);
+  currentPartIndex = 0;
+  renderTabs();
+}
+
+function renderTabs() {
+  previewTabs.innerHTML = '';
+  if (parts.length <= 1) return;
+  parts.forEach((part, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'tab-btn' + (i === currentPartIndex ? ' active' : '');
+    btn.textContent = t('splitTab', i + 1, part.length);
+    btn.addEventListener('click', () => {
+      currentPartIndex = i;
+      previewArea.textContent = parts[i];
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+    previewTabs.appendChild(btn);
+  });
+  if (parts.length > 0) previewArea.textContent = parts[currentPartIndex];
+}
+
+// ========== 进度 ==========
+function showProgress() { progressContainer.classList.remove('hidden'); progressFill.style.width = '0%'; progressText.textContent = '0%'; }
+function hideProgress() { progressContainer.classList.add('hidden'); }
 function updateProgress(current, total) {
-  const percent = total > 0 ? Math.round((current / total) * 100) : 0;
-  progressFill.style.width = `${percent}%`;
-  progressText.textContent = `${percent}% (${current}/${total})`;
+  const pct = total ? Math.round((current / total) * 100) : 0;
+  progressFill.style.width = `${pct}%`;
+  progressText.textContent = `${pct}% (${current}/${total})`;
 }
-
-window.electronAPI.onMergeProgress((data) => {
-  updateProgress(data.current, data.total);
-});
-
-// ========== 生成文件名 ==========
-async function generateOutputFileName() {
-  const folderName = currentDir ? await window.electronAPI.pathBasename(currentDir) : 'folder';
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  let name = currentConfig.outputFileName || 'merged.md';
-  name = name.replace('{folderName}', folderName);
-  name = name.replace('{timestamp}', timestamp);
-  return name;
-}
+window.electronAPI.onMergeProgress((data) => updateProgress(data.current, data.total));
 
 // ========== 预览 ==========
 previewBtn.addEventListener('click', async () => {
-  if (!currentDir) {
-    alert(t('scanError'));
-    return;
-  }
+  if (!currentDir) return alert(t('scanError'));
   await saveConfigToDir();
   showProgress();
   saveBtn.disabled = true;
@@ -507,9 +471,8 @@ previewBtn.addEventListener('click', async () => {
   try {
     const options = { ...currentConfig };
     mergedMarkdown = await window.electronAPI.startMerge(currentDir, options);
-    const lines = mergedMarkdown.split('\n');
-    const previewText = lines.slice(0, 200).join('\n');
-    previewArea.textContent = previewText + (lines.length > 200 ? '\n... (preview truncated, full content will be in saved file)' : '');
+    compressedMarkdown = compressOutputCheckbox.checked ? compressMarkdown(mergedMarkdown) : mergedMarkdown;
+    updatePartsView();
     saveBtn.disabled = false;
     statusDiv.textContent = t('previewDone');
     isDirty = false;
@@ -521,52 +484,72 @@ previewBtn.addEventListener('click', async () => {
   }
 });
 
+// ========== 复制到剪贴板 ==========
+copyCurrentPartBtn.addEventListener('click', async () => {
+  const text = parts.length ? parts[currentPartIndex] : (compressOutputCheckbox.checked ? compressedMarkdown : mergedMarkdown);
+  try {
+    await navigator.clipboard.writeText(text);
+    statusDiv.textContent = t('copySuccess');
+  } catch {
+    statusDiv.textContent = t('copyFailed');
+  }
+});
+
 // ========== 保存 ==========
 saveBtn.addEventListener('click', async () => {
   if (!currentDir || !mergedMarkdown) return;
-  const defaultName = await generateOutputFileName();
-  const defaultPath = currentDir + (currentDir.endsWith('/') || currentDir.endsWith('\\') ? '' : '/') + defaultName;
-  const filePath = await window.electronAPI.saveFileDialog(defaultPath);
-  if (!filePath) return;
 
-  const success = await window.electronAPI.writeFile(filePath, mergedMarkdown);
-  if (success) {
-    statusDiv.textContent = t('savedTo') + filePath;
-    await window.electronAPI.showItemInFolder(filePath);
-  } else {
-    statusDiv.textContent = t('saveFailed');
-    alert(t('saveFailed'));
-  }
-});
+  const outputBaseName = await generateOutputFileName();
+  const maxChars = parseInt(maxCharsPerPartInput.value) || 0;
 
-// ========== 目录拖拽 ==========
-const dropZone = document.getElementById('dropZone');
-dropZone.addEventListener('dragover', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  dropZone.classList.add('dragover');
-});
-dropZone.addEventListener('dragleave', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  dropZone.classList.remove('dragover');
-});
-dropZone.addEventListener('drop', async (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  dropZone.classList.remove('dragover');
-  const files = e.dataTransfer.files;
-  if (files.length > 0) {
-    const droppedPath = files[0].path;
-    const isDir = await window.electronAPI.isDirectory(droppedPath);
-    if (isDir) {
-      selectDirectory(droppedPath);
+  if (!maxChars || parts.length <= 1) {
+    const defaultPath = currentDir + '/' + outputBaseName;
+    const filePath = await window.electronAPI.saveFileDialog(defaultPath);
+    if (!filePath) return;
+    const finalContent = compressOutputCheckbox.checked ? compressedMarkdown : mergedMarkdown;
+    const ok = await window.electronAPI.writeFile(filePath, finalContent);
+    if (ok) {
+      statusDiv.textContent = t('savedTo') + filePath;
+      await window.electronAPI.showItemInFolder(filePath);
     } else {
-      alert(t('dropFileError'));
+      statusDiv.textContent = t('saveFailed');
     }
+  } else {
+    const dir = await window.electronAPI.pickSaveDirectory();
+    if (!dir) return;
+    const base = outputBaseName.replace(/\.md$/i, '');
+    for (let i = 0; i < parts.length; i++) {
+      const partName = `${base}-part${i+1}.md`;
+      const filePath = dir + '/' + partName;
+      await window.electronAPI.writeFile(filePath, parts[i]);
+    }
+    statusDiv.textContent = t('savedTo') + dir;
+    await window.electronAPI.showItemInFolder(dir);
   }
 });
 
-// 初始化语言界面和历史记录
+async function generateOutputFileName() {
+  const folderName = currentDir ? await window.electronAPI.pathBasename(currentDir) : 'folder';
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  let name = currentConfig.outputFileName || 'merged.md';
+  name = name.replace('{folderName}', folderName).replace('{timestamp}', timestamp);
+  return name;
+}
+
+// ========== 拖拽目录 ==========
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', async e => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+  const files = e.dataTransfer.files;
+  if (files.length) {
+    const isDir = await window.electronAPI.isDirectory(files[0].path);
+    if (isDir) selectDirectory(files[0].path);
+    else alert(t('dropFileError'));
+  }
+});
+
+// 初始化
 applyLanguage();
 refreshHistory();

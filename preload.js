@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   saveFileDialog: (defaultPath) => ipcRenderer.invoke('save-file-dialog', defaultPath),
+  pickSaveDirectory: () => ipcRenderer.invoke('pick-save-directory'),
   writeFile: (filePath, content) => ipcRenderer.invoke('write-file', filePath, content),
   showItemInFolder: (fullPath) => ipcRenderer.invoke('show-item-in-folder', fullPath)
 });

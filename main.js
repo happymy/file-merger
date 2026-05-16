@@ -188,6 +188,14 @@ ipcMain.handle('save-file-dialog', async (event, defaultPath) => {
   return result.filePath;
 });
 
+ipcMain.handle('pick-save-directory', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory', 'createDirectory']
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return result.filePaths[0];
+});
+
 ipcMain.handle('write-file', async (event, filePath, content) => {
   try {
     fs.writeFileSync(filePath, content, 'utf-8');

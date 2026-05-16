@@ -72,9 +72,25 @@
           <input type="checkbox" id="ignoreHidden"> <span data-i18n="ignoreHidden">Ignore hidden files/folders</span>
         </label>
       </div>
+      <div class="checkbox-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="compressOutput"> <span>Compress output (remove extra spaces, language tags)</span>
+        </label>
+      </div>
+      <div class="input-row">
+        <div class="input-group">
+          <label>Max chars per part (0 = no split)</label>
+          <input type="number" id="maxCharsPerPart" min="0" value="0">
+        </div>
+      </div>
+      <!-- 新增：分段尾部自定义内容 -->
       <div class="input-group">
-        <label data-i18n="customFooterLabel">Custom footer</label>
-        <span class="hint" data-i18n="customFooterHint">(Markdown)</span>
+        <label>Per-part footer (added to each part except the last one)</label>
+        <textarea id="splitPartFooter" rows="2" placeholder="e.g. (to be continued...)"></textarea>
+      </div>
+      <div class="input-group">
+        <label data-i18n="customFooterLabel">Custom footer (appended at the very end)</label>
+        <span class="hint" data-i18n="customFooterHint"></span>
         <textarea id="customFooter" rows="3" data-i18n-placeholder="footerPlaceholder"></textarea>
       </div>
       <div class="input-group">
@@ -100,7 +116,11 @@
 
     <!-- 预览区 -->
     <div class="preview-container">
-      <h3 data-i18n="previewTitle">Preview (first 200 lines)</h3>
+      <div class="preview-header">
+        <h3 data-i18n="previewTitle">Preview</h3>
+        <div id="previewTabs" class="tabs"></div>
+        <button id="copyCurrentPartBtn" class="copy-btn" title="Copy current part">📋 Copy</button>
+      </div>
       <pre id="previewArea"></pre>
     </div>
 
