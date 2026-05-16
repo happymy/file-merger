@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>File Merger Pro</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>📁 File Merger Pro</h1>
+
+    <!-- 目录选择区（含拖拽） -->
+    <div class="drop-zone" id="dropZone">
+      <div class="control-row">
+        <button id="selectDirBtn">📂 选择目录</button>
+        <span id="dirPathDisplay" class="path-display">未选择目录（也可拖拽文件夹到此处）</span>
+        <button id="historyBtn" title="最近目录">📋</button>
+      </div>
+      <div id="historyDropdown" class="history-dropdown hidden"></div>
+    </div>
+
+    <!-- 配置区 -->
+    <div class="config-section">
+      <div class="input-row">
+        <div class="input-group">
+          <label>排除目录（每行一个 glob）</label>
+          <textarea id="excludeDirs" rows="2"></textarea>
+        </div>
+        <div class="input-group">
+          <label>排除文件（每行一个 glob）</label>
+          <textarea id="excludeFiles" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="input-row">
+        <div class="input-group">
+          <label>白名单扩展名（逗号分隔，如 js,ts,md，留空则全部包含）</label>
+          <input type="text" id="whiteListExts" placeholder="js,ts,json,md">
+        </div>
+        <div class="input-group">
+          <label>文件大小上限（KB，0 不限制）</label>
+          <input type="number" id="maxFileSizeKB" min="0" value="0">
+        </div>
+      </div>
+      <div class="checkbox-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="excludeBinary"> 排除二进制文件
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="ignoreHidden"> 忽略隐藏文件/目录
+        </label>
+      </div>
+      <div class="input-group">
+        <label>自定义尾部内容（Markdown）</label>
+        <textarea id="customFooter" rows="3" placeholder="追加在文件末尾的内容..."></textarea>
+      </div>
+      <div class="input-group">
+        <label>输出文件名模板（支持 {folderName}、{timestamp}）</label>
+        <input type="text" id="outputFileName" value="merged-{timestamp}.md">
+      </div>
+    </div>
+
+    <!-- 操作按钮 -->
+    <div class="actions">
+      <button id="previewBtn">🔍 扫描并预览</button>
+      <button id="saveBtn" disabled>💾 合并并保存</button>
+    </div>
+
+    <!-- 进度条 -->
+    <div id="progressContainer" class="progress-container hidden">
+      <div class="progress-bar">
+        <div id="progressFill" class="progress-fill"></div>
+      </div>
+      <span id="progressText">0%</span>
+    </div>
+
+    <!-- 预览区 -->
+    <div class="preview-container">
+      <h3>预览（前 200 行）</h3>
+      <pre id="previewArea"></pre>
+    </div>
+
+    <div id="status" class="status"></div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
