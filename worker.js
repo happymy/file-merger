@@ -60,7 +60,7 @@ function collectFiles() {
         if (maxFileSizeKB > 0) {
           try {
             const stat = fs.statSync(fullPath);
-            if (stat.size / 1024 > maxFileSizeKB) continue;
+            if (stat.size > maxFileSizeKB * 1024) continue;
           } catch {
             continue;
           }
@@ -132,12 +132,12 @@ function getLanguageFromExt(filename) {
       md += `## ${relPath}\n\n`;
 
       if (content.type === 'binary') {
-        md += `\`\`\`\n[二进制文件，大小：${(content.size / 1024).toFixed(1)} KB]\n\`\`\`\n\n`;
+        md += `\`\`\`\n[Binary file, size: ${(content.size / 1024).toFixed(1)} KB]\n\`\`\`\n\n`;
       } else if (content.type === 'text') {
         const lang = getLanguageFromExt(relPath);
         md += `\`\`\`${lang}\n${content.text}\n\`\`\`\n\n`;
       } else {
-        md += `\`\`\`\n[读取错误: ${content.message}]\n\`\`\`\n\n`;
+        md += `\`\`\`\n[Read error: ${content.message}]\n\`\`\`\n\n`;
       }
 
       parentPort.postMessage({ type: 'progress', data: { current: i+1, total } });

@@ -7,74 +7,87 @@
 </head>
 <body>
   <div class="container">
-    <h1>📁 File Merger Pro</h1>
+    <!-- 顶部：标题和语言切换 -->
+    <div class="header">
+      <h1 data-i18n="title">📁 File Merger Pro</h1>
+      <div class="lang-switch">
+        <button id="langEnBtn" class="lang-btn">EN</button>
+        <button id="langZhBtn" class="lang-btn">中文</button>
+      </div>
+    </div>
 
     <!-- 目录选择区（支持拖拽） -->
     <div class="drop-zone" id="dropZone">
       <div class="control-row">
-        <button id="selectDirBtn">📂 选择目录</button>
-        <span id="dirPathDisplay" class="path-display">未选择目录（可拖拽文件夹到此处）</span>
-        <button id="historyBtn" title="最近使用的目录">📋</button>
+        <button id="selectDirBtn" data-i18n="selectDir">📂 Select Directory</button>
+        <span id="dirPathDisplay" class="path-display" data-i18n-placeholder="noDirSelected"></span>
+        <button id="historyBtn" title="Recent directories">📋</button>
       </div>
       <div id="historyDropdown" class="history-dropdown hidden"></div>
     </div>
 
     <!-- 配置区 -->
     <div class="config-section">
-      <!-- 排除目录标签列表 -->
+      <!-- 排除目录 -->
       <div class="exclude-group">
-        <label>排除目录 <span class="hint">（glob 模式，基于当前目录）</span></label>
+        <label data-i18n="excludeDirsLabel">Exclude Directories</label>
+        <span class="hint" data-i18n="excludeDirsHint">(glob patterns, relative to root)</span>
         <div class="tag-container" id="excludeDirsContainer"></div>
         <div class="add-exclude-row">
-          <input type="text" id="newExcludeDir" placeholder="输入 glob，如 node_modules 或 **/test/**">
-          <button id="addExcludeDirBtn">添加</button>
-          <button id="pickExcludeDirBtn" title="从文件夹选择">📁 浏览</button>
+          <input type="text" id="newExcludeDir" data-i18n-placeholder="dirPlaceholder">
+          <button id="addExcludeDirBtn" data-i18n="addBtn">Add</button>
+          <button id="pickExcludeDirBtn" title="Browse for folder" data-i18n="browseDirBtn">📁 Browse</button>
         </div>
       </div>
 
-      <!-- 排除文件标签列表 -->
+      <!-- 排除文件 -->
       <div class="exclude-group">
-        <label>排除文件 <span class="hint">（glob 模式，基于当前目录）</span></label>
+        <label data-i18n="excludeFilesLabel">Exclude Files</label>
+        <span class="hint" data-i18n="excludeFilesHint">(glob patterns, relative to root)</span>
         <div class="tag-container" id="excludeFilesContainer"></div>
         <div class="add-exclude-row">
-          <input type="text" id="newExcludeFile" placeholder="输入 glob，如 *.log 或 **/*.test.js">
-          <button id="addExcludeFileBtn">添加</button>
-          <button id="pickExcludeFileBtn" title="选择文件">📄 浏览</button>
+          <input type="text" id="newExcludeFile" data-i18n-placeholder="filePlaceholder">
+          <button id="addExcludeFileBtn" data-i18n="addBtn">Add</button>
+          <button id="pickExcludeFileBtn" title="Browse for file" data-i18n="browseFileBtn">📄 Browse</button>
         </div>
       </div>
 
       <div class="input-row">
         <div class="input-group">
-          <label>白名单扩展名 <span class="hint">（逗号分隔，留空则包含全部）</span></label>
-          <input type="text" id="whiteListExts" placeholder="js,ts,json,md">
+          <label data-i18n="whiteListLabel">Whitelist extensions</label>
+          <span class="hint" data-i18n="whiteListHint">(comma separated, empty = all)</span>
+          <input type="text" id="whiteListExts" data-i18n-placeholder="whiteListPlaceholder">
         </div>
         <div class="input-group">
-          <label>文件大小上限 <span class="hint">（KB，0 不限制）</span></label>
+          <label data-i18n="maxSizeLabel">Max file size</label>
+          <span class="hint" data-i18n="maxSizeHint">(KB, 0 = no limit)</span>
           <input type="number" id="maxFileSizeKB" min="0" value="0">
         </div>
       </div>
       <div class="checkbox-group">
         <label class="checkbox-label">
-          <input type="checkbox" id="excludeBinary"> 排除二进制文件
+          <input type="checkbox" id="excludeBinary"> <span data-i18n="excludeBinary">Exclude binary files</span>
         </label>
         <label class="checkbox-label">
-          <input type="checkbox" id="ignoreHidden"> 忽略隐藏文件/目录
+          <input type="checkbox" id="ignoreHidden"> <span data-i18n="ignoreHidden">Ignore hidden files/folders</span>
         </label>
       </div>
       <div class="input-group">
-        <label>自定义尾部内容 <span class="hint">（Markdown 格式）</span></label>
-        <textarea id="customFooter" rows="3" placeholder="追加在文件末尾的内容..."></textarea>
+        <label data-i18n="customFooterLabel">Custom footer</label>
+        <span class="hint" data-i18n="customFooterHint">(Markdown)</span>
+        <textarea id="customFooter" rows="3" data-i18n-placeholder="footerPlaceholder"></textarea>
       </div>
       <div class="input-group">
-        <label>输出文件名模板 <span class="hint">（支持 {folderName}、{timestamp}）</span></label>
+        <label data-i18n="outputNameLabel">Output filename template</label>
+        <span class="hint" data-i18n="outputNameHint">(supports {folderName}, {timestamp})</span>
         <input type="text" id="outputFileName" value="merged-{timestamp}.md">
       </div>
     </div>
 
     <!-- 操作按钮 -->
     <div class="actions">
-      <button id="previewBtn">🔍 扫描并预览</button>
-      <button id="saveBtn" disabled>💾 合并并保存</button>
+      <button id="previewBtn" data-i18n="previewBtn">🔍 Scan & Preview</button>
+      <button id="saveBtn" disabled data-i18n="saveBtn">💾 Merge & Save</button>
     </div>
 
     <!-- 进度条 -->
@@ -87,7 +100,7 @@
 
     <!-- 预览区 -->
     <div class="preview-container">
-      <h3>预览（前 200 行）</h3>
+      <h3 data-i18n="previewTitle">Preview (first 200 lines)</h3>
       <pre id="previewArea"></pre>
     </div>
 

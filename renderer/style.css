@@ -13,6 +13,8 @@
   --tag-bg: #e9f2fa;
   --tag-text: #1a4b6b;
   --tag-hover: #d0e4f5;
+  --tag-disabled-bg: #f0f0f0;
+  --tag-disabled-text: #999;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -31,6 +33,8 @@
     --tag-bg: #334155;
     --tag-text: #cbd5e1;
     --tag-hover: #475569;
+    --tag-disabled-bg: #2a2a2a;
+    --tag-disabled-text: #777;
   }
 }
 
@@ -49,7 +53,34 @@ body {
   border-radius: 12px;
   box-shadow: var(--shadow);
 }
-h1 { margin-bottom: 16px; }
+/* 头部：标题和语言切换 */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.header h1 {
+  margin: 0;
+}
+.lang-switch {
+  display: flex;
+  gap: 5px;
+}
+.lang-btn {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--input-bg);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.85em;
+}
+.lang-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
 
 /* 拖拽区 */
 .drop-zone {
@@ -154,6 +185,11 @@ button:disabled {
   border-radius: 6px;
   background: var(--container-bg);
   margin-bottom: 6px;
+  transition: border-color 0.3s;
+}
+.tag-container.dragover {
+  border-color: var(--accent);
+  background: var(--tag-bg);
 }
 .tag {
   display: inline-flex;
@@ -165,12 +201,22 @@ button:disabled {
   border-radius: 20px;
   font-size: 0.85em;
   font-family: monospace;
+  transition: opacity 0.2s;
+}
+.tag.disabled {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+.tag input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
 }
 .tag .remove-tag {
   cursor: pointer;
   font-weight: bold;
   line-height: 1;
   opacity: 0.7;
+  margin-left: 4px;
 }
 .tag .remove-tag:hover {
   opacity: 1;
