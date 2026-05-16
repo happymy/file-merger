@@ -454,11 +454,21 @@ function renderTabs() {
   // 至少显示一个标签页
   if (parts.length === 1) {
     const btn = document.createElement('button');
-    btn.className = 'tab-btn active';
+    btn.className = 'tab-btn' + (currentPartIndex === 0 ? ' active' : '');
     btn.textContent = t('fullFileTab');
     btn.addEventListener('click', () => {
+      // 移除之前的活动标签
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('active');
+        // 如果之前是copied状态，保留copied状态
+        if(!b.classList.contains('copied')) {
+          b.classList.remove('copied');
+        }
+      });
+      
       currentPartIndex = 0;
       previewArea.textContent = parts[0];
+      btn.classList.add('active');
     });
     previewTabs.appendChild(btn);
     previewArea.textContent = parts[0];
@@ -470,9 +480,17 @@ function renderTabs() {
     btn.className = 'tab-btn' + (i === currentPartIndex ? ' active' : '');
     btn.textContent = t('splitTab', i + 1, part.length);
     btn.addEventListener('click', () => {
+      // 移除之前的活动标签，但保留copied状态
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('active');
+        // 如果之前不是copied状态，则移除copied类
+        if(!b.classList.contains('copied')) {
+          b.classList.remove('copied');
+        }
+      });
+      
       currentPartIndex = i;
       previewArea.textContent = parts[i];
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
     });
     previewTabs.appendChild(btn);
@@ -527,6 +545,13 @@ copyCurrentPartBtn.addEventListener('click', async () => {
     const originalText = copyCurrentPartBtn.textContent;
     copyCurrentPartBtn.textContent = '✅ ' + t('copySuccess');
     copyCurrentPartBtn.style.background = 'var(--accent-hover)';
+    
+    // 为当前活动的选项卡添加copied样式，并保持不变
+    const activeTab = document.querySelector('.tab-btn.active');
+    if(activeTab) {
+      activeTab.classList.remove('active'); // 移除active样式
+      activeTab.classList.add('copied');    // 添加copied样式
+    }
     
     setTimeout(() => {
       copyCurrentPartBtn.textContent = originalText;
