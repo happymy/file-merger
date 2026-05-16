@@ -20,6 +20,10 @@ const i18n = {
     maxSizeHint: '(KB, 0 = no limit)',
     excludeBinary: 'Exclude binary files',
     ignoreHidden: 'Ignore hidden files/folders',
+    compressOutput: 'Compress output (remove extra spaces, language tags)',
+    maxCharsLabel: 'Max chars per part (0 = no split)',
+    splitPartFooterLabel: 'Per-part footer (added to each part except the last one)',
+    splitPartFooterPlaceholder: 'e.g. (to be continued...)',
     customFooterLabel: 'Custom footer (end of file)',
     customFooterHint: '(Markdown)',
     footerPlaceholder: 'Content appended at the very end...',
@@ -28,6 +32,7 @@ const i18n = {
     previewBtn: '🔍 Scan & Preview',
     saveBtn: '💾 Merge & Save',
     previewTitle: 'Preview',
+    copyBtn: '📋 Copy',
     historyClear: 'Clear history',
     noHistory: 'No history',
     scanError: 'Please select a directory first.',
@@ -44,7 +49,8 @@ const i18n = {
     rootSelected: 'You selected the root directory itself, which is not allowed.',
     copySuccess: 'Copied!',
     copyFailed: 'Copy failed',
-    splitTab: (i, chars) => `Part ${i} (${chars} chars)`
+    splitTab: (i, chars) => `Part ${i} (${chars} chars)`,
+    fullFileTab: 'Full file'            // 单一部分标签
   },
   zh: {
     title: '📁 文件合并工具',
@@ -66,6 +72,10 @@ const i18n = {
     maxSizeHint: '（KB，0 表示无限制）',
     excludeBinary: '排除二进制文件',
     ignoreHidden: '忽略隐藏文件/文件夹',
+    compressOutput: '压缩输出（去除多余空格、语言标记）',
+    maxCharsLabel: '每段最大字符数（0 = 不拆分）',
+    splitPartFooterLabel: '分段尾部内容（添加到除最后一段外的每个分段末尾）',
+    splitPartFooterPlaceholder: '例如：（未完待续...）',
     customFooterLabel: '自定义尾部内容（文件最末尾）',
     customFooterHint: '（Markdown 格式）',
     footerPlaceholder: '追加在文件末尾的内容...',
@@ -74,6 +84,7 @@ const i18n = {
     previewBtn: '🔍 扫描并预览',
     saveBtn: '💾 合并并保存',
     previewTitle: '预览',
+    copyBtn: '📋 复制',
     historyClear: '清除历史',
     noHistory: '无历史记录',
     scanError: '请先选择目录。',
@@ -90,7 +101,8 @@ const i18n = {
     rootSelected: '不能选择根目录本身。',
     copySuccess: '已复制！',
     copyFailed: '复制失败',
-    splitTab: (i, chars) => `分段 ${i} (${chars} 字符)`
+    splitTab: (i, chars) => `分段 ${i} (${chars} 字符)`,
+    fullFileTab: '完整文件'
   }
 };
 
@@ -113,10 +125,20 @@ function applyLanguage() {
   });
   document.getElementById('langEnBtn').classList.toggle('active', currentLang === 'en');
   document.getElementById('langZhBtn').classList.toggle('active', currentLang === 'zh');
+  // 如果预览标签存在，重新渲染（语言变化时）
+  if (parts.length > 0) renderTabs();
 }
 
-document.getElementById('langEnBtn').addEventListener('click', () => { currentLang = 'en'; localStorage.setItem('lang', 'en'); applyLanguage(); });
-document.getElementById('langZhBtn').addEventListener('click', () => { currentLang = 'zh'; localStorage.setItem('lang', 'zh'); applyLanguage(); });
+document.getElementById('langEnBtn').addEventListener('click', () => {
+  currentLang = 'en';
+  localStorage.setItem('lang', 'en');
+  applyLanguage();
+});
+document.getElementById('langZhBtn').addEventListener('click', () => {
+  currentLang = 'zh';
+  localStorage.setItem('lang', 'zh');
+  applyLanguage();
+});
 
 // ==================== 主逻辑 ====================
 let currentDir = null;
@@ -206,8 +228,8 @@ async function selectDirectory(dirPath) {
   dirPathDisplay.textContent = dirPath;
   const saved = await window.electronAPI.readConfig(dirPath);
   currentConfig = saved ? migrateConfig(saved) : {
-    excludeDirs: [], excludeFiles: [], excludeBinary: false, ignoreHidden: false, compressOutput: false,
-    maxCharsPerPart: 0, splitPartFooter: '',
+    excludeDirs: [], excludeFiles: [], excludeBinary: false, ignoreHidden: false,
+    compressOutput: false, maxCharsPerPart: 0, splitPartFooter: '',
     whiteListExts: [], maxFileSizeKB: 0, customFooter: '', outputFileName: 'merged-{timestamp}.md'
   };
   populateUIFromConfig();
@@ -240,20 +262,18 @@ function renderTags(container, items) {
     `;
     container.appendChild(tag);
   });
-
   container.querySelectorAll('.tag-checkbox').forEach(cb => {
-    cb.addEventListener('change', (e) => {
-      const idx = parseInt(e.target.getAttribute('data-index'), 10);
+    cb.addEventListener('change', e => {
+      const idx = +e.target.dataset.index;
       items[idx].enabled = cb.checked;
       markDirty();
       renderTags(container, items);
     });
   });
-
   container.querySelectorAll('.remove-tag').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', e => {
       e.stopPropagation();
-      const idx = parseInt(e.target.getAttribute('data-index'), 10);
+      const idx = +e.target.dataset.index;
       items.splice(idx, 1);
       markDirty();
       renderTags(container, items);
@@ -262,9 +282,9 @@ function renderTags(container, items) {
 }
 
 function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
 }
 
 function populateUIFromConfig() {
@@ -315,11 +335,10 @@ function markDirty() {
   }
 }
 
-const inputsToWatch = [
+[
   excludeBinaryCheckbox, ignoreHiddenCheckbox, compressOutputCheckbox, maxCharsPerPartInput,
   splitPartFooterTextarea, whiteListExtsInput, maxFileSizeKBInput, customFooterTextarea, outputFileNameInput
-];
-inputsToWatch.forEach(el => {
+].forEach(el => {
   el.addEventListener('input', markDirty);
   el.addEventListener('change', markDirty);
 });
@@ -390,9 +409,7 @@ function compressMarkdown(md) {
 }
 
 function splitMarkdown(md, maxChars, partFooter) {
-  if (!maxChars || maxChars <= 0) {
-    return [md]; // 不拆分，不分段尾部
-  }
+  if (!maxChars || maxChars <= 0) return [md]; // 不切分
 
   const blocks = md.split(/(?=^## )/m);
   const result = [];
@@ -413,7 +430,7 @@ function splitMarkdown(md, maxChars, partFooter) {
   }
   if (current) result.push(current);
 
-  // 为除最后一个分段外的所有分段添加尾部
+  // 除最后一个分段外，添加尾部
   if (partFooter && result.length > 1) {
     for (let i = 0; i < result.length - 1; i++) {
       result[i] += '\n\n' + partFooter + '\n';
@@ -433,7 +450,21 @@ function updatePartsView() {
 
 function renderTabs() {
   previewTabs.innerHTML = '';
-  if (parts.length <= 1) return;
+
+  // 至少显示一个标签页
+  if (parts.length === 1) {
+    const btn = document.createElement('button');
+    btn.className = 'tab-btn active';
+    btn.textContent = t('fullFileTab');
+    btn.addEventListener('click', () => {
+      currentPartIndex = 0;
+      previewArea.textContent = parts[0];
+    });
+    previewTabs.appendChild(btn);
+    previewArea.textContent = parts[0];
+    return;
+  }
+
   parts.forEach((part, i) => {
     const btn = document.createElement('button');
     btn.className = 'tab-btn' + (i === currentPartIndex ? ' active' : '');
@@ -487,6 +518,7 @@ previewBtn.addEventListener('click', async () => {
 // ========== 复制到剪贴板 ==========
 copyCurrentPartBtn.addEventListener('click', async () => {
   const text = parts.length ? parts[currentPartIndex] : (compressOutputCheckbox.checked ? compressedMarkdown : mergedMarkdown);
+  if (!text) return;
   try {
     await navigator.clipboard.writeText(text);
     statusDiv.textContent = t('copySuccess');

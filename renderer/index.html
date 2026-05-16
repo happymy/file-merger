@@ -31,36 +31,35 @@
       <!-- 排除目录 -->
       <div class="exclude-group">
         <label data-i18n="excludeDirsLabel">Exclude Directories</label>
-        <span class="hint" data-i18n="excludeDirsHint">(glob patterns, relative to root)</span>
+        <span class="hint" data-i18n="excludeDirsHint"></span>
         <div class="tag-container" id="excludeDirsContainer"></div>
         <div class="add-exclude-row">
           <input type="text" id="newExcludeDir" data-i18n-placeholder="dirPlaceholder">
           <button id="addExcludeDirBtn" data-i18n="addBtn">Add</button>
-          <button id="pickExcludeDirBtn" title="Browse for folder" data-i18n="browseDirBtn">📁 Browse</button>
+          <button id="pickExcludeDirBtn" title="Browse" data-i18n="browseDirBtn">📁 Browse</button>
         </div>
       </div>
 
-      <!-- 排除文件 -->
       <div class="exclude-group">
         <label data-i18n="excludeFilesLabel">Exclude Files</label>
-        <span class="hint" data-i18n="excludeFilesHint">(glob patterns, relative to root)</span>
+        <span class="hint" data-i18n="excludeFilesHint"></span>
         <div class="tag-container" id="excludeFilesContainer"></div>
         <div class="add-exclude-row">
           <input type="text" id="newExcludeFile" data-i18n-placeholder="filePlaceholder">
           <button id="addExcludeFileBtn" data-i18n="addBtn">Add</button>
-          <button id="pickExcludeFileBtn" title="Browse for file" data-i18n="browseFileBtn">📄 Browse</button>
+          <button id="pickExcludeFileBtn" title="Browse" data-i18n="browseFileBtn">📄 Browse</button>
         </div>
       </div>
 
       <div class="input-row">
         <div class="input-group">
           <label data-i18n="whiteListLabel">Whitelist extensions</label>
-          <span class="hint" data-i18n="whiteListHint">(comma separated, empty = all)</span>
+          <span class="hint" data-i18n="whiteListHint"></span>
           <input type="text" id="whiteListExts" data-i18n-placeholder="whiteListPlaceholder">
         </div>
         <div class="input-group">
           <label data-i18n="maxSizeLabel">Max file size</label>
-          <span class="hint" data-i18n="maxSizeHint">(KB, 0 = no limit)</span>
+          <span class="hint" data-i18n="maxSizeHint"></span>
           <input type="number" id="maxFileSizeKB" min="0" value="0">
         </div>
       </div>
@@ -74,28 +73,27 @@
       </div>
       <div class="checkbox-group">
         <label class="checkbox-label">
-          <input type="checkbox" id="compressOutput"> <span>Compress output (remove extra spaces, language tags)</span>
+          <input type="checkbox" id="compressOutput"> <span data-i18n="compressOutput">Compress output</span>
         </label>
       </div>
       <div class="input-row">
         <div class="input-group">
-          <label>Max chars per part (0 = no split)</label>
+          <label data-i18n="maxCharsLabel">Max chars per part</label>
           <input type="number" id="maxCharsPerPart" min="0" value="0">
         </div>
       </div>
-      <!-- 新增：分段尾部自定义内容 -->
       <div class="input-group">
-        <label>Per-part footer (added to each part except the last one)</label>
-        <textarea id="splitPartFooter" rows="2" placeholder="e.g. (to be continued...)"></textarea>
+        <label data-i18n="splitPartFooterLabel">Per-part footer</label>
+        <textarea id="splitPartFooter" rows="2" data-i18n-placeholder="splitPartFooterPlaceholder"></textarea>
       </div>
       <div class="input-group">
-        <label data-i18n="customFooterLabel">Custom footer (appended at the very end)</label>
+        <label data-i18n="customFooterLabel">Custom footer (end of file)</label>
         <span class="hint" data-i18n="customFooterHint"></span>
         <textarea id="customFooter" rows="3" data-i18n-placeholder="footerPlaceholder"></textarea>
       </div>
       <div class="input-group">
         <label data-i18n="outputNameLabel">Output filename template</label>
-        <span class="hint" data-i18n="outputNameHint">(supports {folderName}, {timestamp})</span>
+        <span class="hint" data-i18n="outputNameHint"></span>
         <input type="text" id="outputFileName" value="merged-{timestamp}.md">
       </div>
     </div>
@@ -119,7 +117,7 @@
       <div class="preview-header">
         <h3 data-i18n="previewTitle">Preview</h3>
         <div id="previewTabs" class="tabs"></div>
-        <button id="copyCurrentPartBtn" class="copy-btn" title="Copy current part">📋 Copy</button>
+        <button id="copyCurrentPartBtn" class="copy-btn" data-i18n="copyBtn">📋 Copy</button>
       </div>
       <pre id="previewArea"></pre>
     </div>
