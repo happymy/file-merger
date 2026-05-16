@@ -5,16 +5,19 @@ on:
     tags:
       - 'V*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-      # 1. 检出代码（默认 checkout 即可，推送的是 tag，github.ref 为 refs/tags/v...）
+      # 1. 检出代码
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. 设置 Node.js 18（与项目兼容的 LTS 版本）
+      # 2. 设置 Node.js 18
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -25,11 +28,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # 4. Electron Forge 打包（根据 forge.config.js 生成 .exe 等）
+      # 4. Electron Forge 打包
       - name: Make with Electron Forge
         run: npx electron-forge make
 
-      # 5. 从 tag 名称提取纯净版本号（去掉前缀 v）
+      # 5. 从 tag 提取版本号
       - name: Extract version from tag
         id: version
         shell: pwsh
@@ -38,7 +41,7 @@ jobs:
           $version = $tag -replace '^v', ''
           echo "version=$version" >> $env:GITHUB_OUTPUT
 
-      # 6. 创建 GitHub Release 并上传可执行文件
+      # 6. 创建 GitHub Release 并上传产物
       - name: Create Release and upload assets
         uses: softprops/action-gh-release@v2
         with:
