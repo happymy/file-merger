@@ -84,7 +84,6 @@ function readFileContent(fullPath) {
     if (isBin) {
       return { type: 'binary', base64: buffer.toString('base64'), size: buffer.length };
     }
-    // 编码检测
     const detected = jschardet.detect(buffer);
     let text;
     if (detected.encoding && detected.encoding !== 'UTF-8' && detected.encoding !== 'ascii') {

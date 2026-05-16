@@ -11,7 +11,7 @@ const historyPath = path.join(app.getPath('userData'), 'recent-dirs.json');
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1100,
-    height: 800,
+    height: 850,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

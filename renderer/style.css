@@ -10,6 +10,9 @@
   --shadow: 0 4px 20px rgba(0,0,0,0.1);
   --progress-bg: #e0e0e0;
   --hint-color: #888;
+  --tag-bg: #e9f2fa;
+  --tag-text: #1a4b6b;
+  --tag-hover: #d0e4f5;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -25,6 +28,9 @@
     --shadow: 0 4px 20px rgba(0,0,0,0.5);
     --progress-bg: #444;
     --hint-color: #aaa;
+    --tag-bg: #334155;
+    --tag-text: #cbd5e1;
+    --tag-hover: #475569;
   }
 }
 
@@ -90,13 +96,6 @@ button:disabled {
   cursor: default;
 }
 
-/* 小按钮样式 */
-.textarea-with-btn button {
-  padding: 6px;
-  align-self: flex-start;
-  margin-top: 20px;
-}
-
 /* 历史下拉 */
 .history-dropdown {
   position: absolute;
@@ -127,6 +126,69 @@ button:disabled {
   margin-bottom: 16px;
   border: 1px solid var(--border);
 }
+
+/* 排除组 */
+.exclude-group {
+  margin-bottom: 16px;
+}
+.exclude-group label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 500;
+  font-size: 0.9em;
+}
+.hint {
+  font-weight: 400;
+  font-size: 0.8em;
+  color: var(--hint-color);
+}
+
+/* 标签容器 */
+.tag-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--container-bg);
+  margin-bottom: 6px;
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+  border-radius: 20px;
+  font-size: 0.85em;
+  font-family: monospace;
+}
+.tag .remove-tag {
+  cursor: pointer;
+  font-weight: bold;
+  line-height: 1;
+  opacity: 0.7;
+}
+.tag .remove-tag:hover {
+  opacity: 1;
+}
+
+.add-exclude-row {
+  display: flex;
+  gap: 6px;
+}
+.add-exclude-row input {
+  flex: 1;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--container-bg);
+  color: var(--text);
+}
+
 .input-row {
   display: flex;
   gap: 14px;
@@ -142,19 +204,6 @@ button:disabled {
   margin-bottom: 4px;
   font-weight: 500;
   font-size: 0.9em;
-}
-.hint {
-  font-weight: 400;
-  font-size: 0.8em;
-  color: var(--hint-color);
-}
-.textarea-with-btn {
-  display: flex;
-  gap: 6px;
-  align-items: flex-start;
-}
-.textarea-with-btn textarea {
-  flex: 1;
 }
 textarea, input[type="text"], input[type="number"] {
   width: 100%;

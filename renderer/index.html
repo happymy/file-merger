@@ -21,22 +21,28 @@
 
     <!-- 配置区 -->
     <div class="config-section">
-      <div class="input-row">
-        <div class="input-group">
-          <label>排除目录 <span class="hint">（每行一个 glob，如 node_modules 或 **/test/**）</span></label>
-          <div class="textarea-with-btn">
-            <textarea id="excludeDirs" rows="2"></textarea>
-            <button id="pickExcludeDirBtn" title="从文件夹选择排除目录">📁</button>
-          </div>
-        </div>
-        <div class="input-group">
-          <label>排除文件 <span class="hint">（每行一个 glob，如 *.log）</span></label>
-          <div class="textarea-with-btn">
-            <textarea id="excludeFiles" rows="2"></textarea>
-            <button id="pickExcludeFileBtn" title="选择文件以排除">📄</button>
-          </div>
+      <!-- 排除目录标签列表 -->
+      <div class="exclude-group">
+        <label>排除目录 <span class="hint">（glob 模式，基于当前目录）</span></label>
+        <div class="tag-container" id="excludeDirsContainer"></div>
+        <div class="add-exclude-row">
+          <input type="text" id="newExcludeDir" placeholder="输入 glob，如 node_modules 或 **/test/**">
+          <button id="addExcludeDirBtn">添加</button>
+          <button id="pickExcludeDirBtn" title="从文件夹选择">📁 浏览</button>
         </div>
       </div>
+
+      <!-- 排除文件标签列表 -->
+      <div class="exclude-group">
+        <label>排除文件 <span class="hint">（glob 模式，基于当前目录）</span></label>
+        <div class="tag-container" id="excludeFilesContainer"></div>
+        <div class="add-exclude-row">
+          <input type="text" id="newExcludeFile" placeholder="输入 glob，如 *.log 或 **/*.test.js">
+          <button id="addExcludeFileBtn">添加</button>
+          <button id="pickExcludeFileBtn" title="选择文件">📄 浏览</button>
+        </div>
+      </div>
+
       <div class="input-row">
         <div class="input-group">
           <label>白名单扩展名 <span class="hint">（逗号分隔，留空则包含全部）</span></label>
