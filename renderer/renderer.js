@@ -367,13 +367,38 @@ newExcludeDirInput.addEventListener('keypress', e => { if (e.key === 'Enter') ad
 newExcludeFileInput.addEventListener('keypress', e => { if (e.key === 'Enter') addExcludeItem(excludeFilesContainer, currentConfig.excludeFiles, newExcludeFileInput); });
 
 async function pickExcludeAndAdd(isDirectory) {
-  if (!currentDir) return alert(t('scanError'));
-  const res = await window.electronAPI.pickExcludeItem(currentDir, isDirectory);
-  if (!res || !res.suggestion) return alert(res.error ? (res.error.includes('root') ? t('rootSelected') : t('outsideRoot')) : '');
-  const arr = isDirectory ? currentConfig.excludeDirs : currentConfig.excludeFiles;
-  const cont = isDirectory ? excludeDirsContainer : excludeFilesContainer;
-  if (!arr.some(i => i.pattern === res.suggestion)) { arr.push({ pattern: res.suggestion, enabled: true }); markDirty(); renderTags(cont, arr); }
+  if (!currentDir) {
+    alert(t('scanError'));
+    return;
+  }
+  const result = await window.electronAPI.pickExcludeItem(currentDir, isDirectory);
+  
+  // 修复：如果用户取消选择，不显示任何提示直接返回
+  if (!result || !result.suggestions) {
+    if (result && result.error) {
+      alert(result.error.includes('root') ? t('rootSelected') : t('outsideRoot'));
+    }
+    return;
+  }
+  
+  const itemsArray = isDirectory ? currentConfig.excludeDirs : currentConfig.excludeFiles;
+  const container = isDirectory ? excludeDirsContainer : excludeFilesContainer;
+  
+  // 添加所有新选择的项目
+  let addedCount = 0;
+  for (const suggestion of result.suggestions) {
+    if (!itemsArray.some(item => item.pattern === suggestion)) {
+      itemsArray.push({ pattern: suggestion, enabled: true });
+      addedCount++;
+    }
+  }
+  
+  if (addedCount > 0) {
+    markDirty();
+    renderTags(container, itemsArray);
+  }
 }
+
 pickExcludeDirBtn.addEventListener('click', () => pickExcludeAndAdd(true));
 pickExcludeFileBtn.addEventListener('click', () => pickExcludeAndAdd(false));
 

@@ -110,18 +110,27 @@ ipcMain.handle('clear-history', () => {
 
 ipcMain.handle('pick-exclude-item', async (event, rootDir, isDirectory) => {
   const options = {
-    properties: isDirectory ? ['openDirectory'] : ['openFile'],
+    properties: isDirectory ? ['openDirectory', 'multiSelections'] : ['openFile', 'multiSelections'],
     defaultPath: rootDir
   };
   const result = await dialog.showOpenDialog(mainWindow, options);
-  if (result.canceled || result.filePaths.length === 0) return { error: null, suggestion: null };
+  if (result.canceled || result.filePaths.length === 0) return { error: null, suggestions: null };
 
   try {
-    const info = validateAndSuggestExclude(rootDir, result.filePaths[0]);
-    if (!info) return { error: 'You selected the root directory itself, which is not allowed.', suggestion: null };
-    return { error: null, suggestion: info.suggestion };
+    const suggestions = [];
+    for (const filePath of result.filePaths) {
+      const info = validateAndSuggestExclude(rootDir, filePath);
+      if (!info) continue; // Skip if trying to add the root directory
+      suggestions.push(info.suggestion);
+    }
+    
+    if (suggestions.length === 0) {
+      return { error: 'You selected the root directory itself, which is not allowed.', suggestions: null };
+    }
+    
+    return { error: null, suggestions: suggestions };
   } catch (err) {
-    return { error: err.message, suggestion: null };
+    return { error: err.message, suggestions: null };
   }
 });
 
