@@ -522,6 +522,16 @@ copyCurrentPartBtn.addEventListener('click', async () => {
   try {
     await navigator.clipboard.writeText(text);
     statusDiv.textContent = t('copySuccess');
+    
+    // 添加视觉提示
+    const originalText = copyCurrentPartBtn.textContent;
+    copyCurrentPartBtn.textContent = '✅ ' + t('copySuccess');
+    copyCurrentPartBtn.style.background = 'var(--accent-hover)';
+    
+    setTimeout(() => {
+      copyCurrentPartBtn.textContent = originalText;
+      copyCurrentPartBtn.style.background = 'var(--accent)';
+    }, 2000);
   } catch {
     statusDiv.textContent = t('copyFailed');
   }
