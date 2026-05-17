@@ -3,7 +3,16 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 
 module.exports = {
   packagerConfig: {
-    asar: true,
+    asar: {
+      unpack: 'worker.js'
+    },
+    ignore: [
+      /^\/(\.git|\.vscode|\.github)/,
+      /\/test$/,
+      /\/docs$/,
+      /\/\.env$/,
+      /\/yarn\.lock$/
+    ],
     win32metadata: {
       publisher: 'file-merger',
     },

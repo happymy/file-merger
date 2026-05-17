@@ -118,6 +118,7 @@ function getLanguageFromExt(filename) {
   try {
     const files = collectFiles();
     let md = '';
+    const fileBlocks = [];
     const total = files.length;
 
     for (let i = 0; i < total; i++) {
@@ -129,25 +130,30 @@ function getLanguageFromExt(filename) {
       }
 
       const relPath = file.relPath.split('\\').join('/');
-      md += `## ${relPath}\n\n`;
+      let block = `## ${relPath}\n\n`;
 
       if (content.type === 'binary') {
-        md += `\`\`\`\n[Binary file, size: ${(content.size / 1024).toFixed(1)} KB]\n\`\`\`\n\n`;
+        block += `\`\`\`\n[Binary file, size: ${(content.size / 1024).toFixed(1)} KB]\n\`\`\`\n\n`;
       } else if (content.type === 'text') {
         const lang = getLanguageFromExt(relPath);
-        md += `\`\`\`${lang}\n${content.text}\n\`\`\`\n\n`;
+        block += `\`\`\`${lang}\n${content.text}\n\`\`\`\n\n`;
       } else {
-        md += `\`\`\`\n[Read error: ${content.message}]\n\`\`\`\n\n`;
+        block += `\`\`\`\n[Read error: ${content.message}]\n\`\`\`\n\n`;
       }
+
+      md += block;
+      fileBlocks.push(block);
 
       parentPort.postMessage({ type: 'progress', data: { current: i+1, total } });
     }
 
     if (options.customFooter && options.customFooter.trim()) {
-      md += `\n---\n\n${options.customFooter}\n`;
+      const footerBlock = `\n---\n\n${options.customFooter}\n`;
+      md += footerBlock;
+      fileBlocks.push(footerBlock);
     }
 
-    parentPort.postMessage({ type: 'result', data: md });
+    parentPort.postMessage({ type: 'result', data: { md, fileBlocks } });
   } catch (err) {
     parentPort.postMessage({ type: 'error', message: err.message });
   }

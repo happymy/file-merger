@@ -1,6 +1,6 @@
 {
   "name": "file-merger-pro",
-  "version": "2.4.9",
+  "version": "2.5.0",
   "description": "一键将整个目录合并为 Markdown，方便粘贴到 AI 对话",
   "author": "happymy",
   "main": "main.js",
@@ -10,7 +10,6 @@
     "make": "electron-forge make"
   },
   "dependencies": {
-    "electron-squirrel-startup": "^1.0.1",
     "iconv-lite": "^0.6.3",
     "isbinaryfile": "^5.0.1",
     "jschardet": "^3.0.0",

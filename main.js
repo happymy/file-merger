@@ -166,7 +166,12 @@ ipcMain.handle('start-merge', async (event, dirPath, options) => {
   };
 
   return new Promise((resolve, reject) => {
-    const worker = new Worker(path.join(__dirname, 'worker.js'), {
+    // 修复 Worker 路径：打包后 worker.js 被 unpack 到 app.asar.unpacked
+    let workerPath = path.join(__dirname, 'worker.js');
+    if (app.isPackaged) {
+      workerPath = path.join(process.resourcesPath, 'app.asar.unpacked', 'worker.js');
+    }
+    const worker = new Worker(workerPath, {
       workerData: { dirPath, options: workerOptions }
     });
 

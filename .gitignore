@@ -2,3 +2,4 @@
 
 out/
 forge.config.js
+.file-merger-config.json

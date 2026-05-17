@@ -157,6 +157,8 @@ let currentConfig = {
 };
 let mergedMarkdown = '';
 let compressedMarkdown = '';
+let fileBlocks = [];
+let compressedBlocks = [];
 let parts = [];
 let currentPartIndex = 0;
 let isDirty = true;
@@ -346,6 +348,8 @@ function markDirty() {
 function resetPreview() {
   mergedMarkdown = '';
   compressedMarkdown = '';
+  fileBlocks = [];
+  compressedBlocks = [];
   parts = [];
   currentPartIndex = 0;
   previewArea.textContent = '';
@@ -424,7 +428,7 @@ function setupDropTarget(container, isDirectory) {
 setupDropTarget(excludeDirsContainer, true);
 setupDropTarget(excludeFilesContainer, false);
 
-// ========== 压缩与切分 ==========
+// ========== 压缩与切分（基于文件块） ==========
 function compressMarkdown(md) {
   return md
     .replace(/```\w+\n/g, '```\n')
@@ -433,42 +437,53 @@ function compressMarkdown(md) {
     .replace(/^\s+$/gm, '');
 }
 
-function splitMarkdown(md, maxChars, partFooter) {
-  if (!maxChars || maxChars <= 0) return [md]; // 不切分
+function splitFromBlocks(blocks, maxChars, partFooter) {
+  if (!maxChars || maxChars <= 0) {
+    return blocks.length ? [blocks.join('')] : [''];
+  }
 
-  const blocks = md.split(/(?=^## )/m);
   const result = [];
   let current = '';
 
   for (const block of blocks) {
-    if (!block.trim()) continue;
-    if (current.length + block.length <= maxChars) {
-      current += block;
-    } else {
-      if (current) result.push(current);
-      current = block;
-      while (current.length > maxChars) {
-        result.push(current.substring(0, maxChars));
-        current = current.substring(maxChars);
+    if (!block) continue;
+    if (current.length + block.length > maxChars && current.length > 0) {
+      result.push(current);
+      current = '';
+    }
+    if (block.length > maxChars && current.length === 0) {
+      let remaining = block;
+      while (remaining.length > maxChars) {
+        result.push(remaining.substring(0, maxChars));
+        remaining = remaining.substring(maxChars);
       }
+      current = remaining;
+    } else {
+      current += block;
     }
   }
   if (current) result.push(current);
 
-  // 除最后一个分段外，添加尾部
   if (partFooter && result.length > 1) {
     for (let i = 0; i < result.length - 1; i++) {
       result[i] += '\n\n' + partFooter + '\n';
     }
   }
 
-  return result;
+  return result.length ? result : [''];
 }
 
 function updatePartsView() {
-  const md = compressOutputCheckbox.checked ? compressedMarkdown : mergedMarkdown;
-  const footer = splitPartFooterTextarea.value;
-  parts = splitMarkdown(md, parseInt(maxCharsPerPartInput.value) || 0, footer);
+  const doCompress = compressOutputCheckbox.checked;
+  if (doCompress) {
+    compressedBlocks = fileBlocks.map(block => compressMarkdown(block));
+    compressedMarkdown = compressedBlocks.join('');
+    parts = splitFromBlocks(compressedBlocks, parseInt(maxCharsPerPartInput.value) || 0, splitPartFooterTextarea.value);
+  } else {
+    compressedBlocks = fileBlocks;
+    mergedMarkdown = fileBlocks.join('');
+    parts = splitFromBlocks(fileBlocks, parseInt(maxCharsPerPartInput.value) || 0, splitPartFooterTextarea.value);
+  }
   currentPartIndex = 0;
   renderTabs();
 }
@@ -476,21 +491,12 @@ function updatePartsView() {
 function renderTabs() {
   previewTabs.innerHTML = '';
 
-  // 至少显示一个标签页
   if (parts.length === 1) {
     const btn = document.createElement('button');
-    btn.className = 'tab-btn' + (currentPartIndex === 0 ? ' active' : '');
+    btn.className = 'tab-btn active';
     btn.textContent = t('fullFileTab');
     btn.addEventListener('click', () => {
-      // 移除之前的活动标签
-      document.querySelectorAll('.tab-btn').forEach(b => {
-        b.classList.remove('active');
-        // 如果之前是copied状态，保留copied状态
-        if(!b.classList.contains('copied')) {
-          b.classList.remove('copied');
-        }
-      });
-      
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active', 'copied'));
       currentPartIndex = 0;
       previewArea.textContent = parts[0];
       btn.classList.add('active');
@@ -505,15 +511,7 @@ function renderTabs() {
     btn.className = 'tab-btn' + (i === currentPartIndex ? ' active' : '');
     btn.textContent = t('splitTab', i + 1, part.length);
     btn.addEventListener('click', () => {
-      // 移除之前的活动标签，但保留copied状态
-      document.querySelectorAll('.tab-btn').forEach(b => {
-        b.classList.remove('active');
-        // 如果之前不是copied状态，则移除copied类
-        if(!b.classList.contains('copied')) {
-          b.classList.remove('copied');
-        }
-      });
-      
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active', 'copied'));
       currentPartIndex = i;
       previewArea.textContent = parts[i];
       btn.classList.add('active');
@@ -544,8 +542,18 @@ previewBtn.addEventListener('click', async () => {
 
   try {
     const options = { ...currentConfig };
-    mergedMarkdown = await window.electronAPI.startMerge(currentDir, options);
-    compressedMarkdown = compressOutputCheckbox.checked ? compressMarkdown(mergedMarkdown) : mergedMarkdown;
+    const result = await window.electronAPI.startMerge(currentDir, options);
+    mergedMarkdown = result.md;
+    fileBlocks = result.fileBlocks;
+
+    if (compressOutputCheckbox.checked) {
+      compressedBlocks = fileBlocks.map(block => compressMarkdown(block));
+      compressedMarkdown = compressedBlocks.join('');
+    } else {
+      compressedBlocks = fileBlocks;
+      compressedMarkdown = mergedMarkdown;
+    }
+
     updatePartsView();
     saveBtn.disabled = false;
     statusDiv.textContent = t('previewDone');
@@ -589,34 +597,29 @@ copyCurrentPartBtn.addEventListener('click', async () => {
 
 // ========== 保存 ==========
 saveBtn.addEventListener('click', async () => {
-  if (!currentDir || !mergedMarkdown) return;
+  if (!currentDir || !fileBlocks.length) return;
 
   const outputBaseName = await generateOutputFileName();
   const maxChars = parseInt(maxCharsPerPartInput.value) || 0;
+  const doCompress = compressOutputCheckbox.checked;
 
   if (!maxChars || parts.length <= 1) {
     const defaultPath = currentDir + '/' + outputBaseName;
-    const filePath = await window.electronAPI.saveFileDialog(defaultPath);
-    if (!filePath) return;
-    const finalContent = compressOutputCheckbox.checked ? compressedMarkdown : mergedMarkdown;
-    const ok = await window.electronAPI.writeFile(filePath, finalContent);
-    if (ok) {
-      statusDiv.textContent = t('savedTo') + filePath;
-      await window.electronAPI.showItemInFolder(filePath);
+    const content = doCompress ? compressedMarkdown : mergedMarkdown;
+    const result = await window.electronAPI.saveFile(defaultPath, content);
+    if (result) {
+      statusDiv.textContent = t('savedTo') + result;
     } else {
       statusDiv.textContent = t('saveFailed');
     }
   } else {
-    const dir = await window.electronAPI.pickSaveDirectory();
-    if (!dir) return;
     const base = outputBaseName.replace(/\.md$/i, '');
-    for (let i = 0; i < parts.length; i++) {
-      const partName = `${base}-part${i+1}.md`;
-      const filePath = dir + '/' + partName;
-      await window.electronAPI.writeFile(filePath, parts[i]);
+    const result = await window.electronAPI.saveParts(base, parts);
+    if (result) {
+      statusDiv.textContent = t('savedTo') + result;
+    } else {
+      statusDiv.textContent = t('saveFailed');
     }
-    statusDiv.textContent = t('savedTo') + dir;
-    await window.electronAPI.showItemInFolder(dir);
   }
 });
 

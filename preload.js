@@ -22,8 +22,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('merge-progress', handler);
   },
 
-  saveFileDialog: (defaultPath) => ipcRenderer.invoke('save-file-dialog', defaultPath),
-  pickSaveDirectory: () => ipcRenderer.invoke('pick-save-directory'),
-  writeFile: (filePath, content) => ipcRenderer.invoke('write-file', filePath, content),
+  saveFile: (defaultPath, content) => ipcRenderer.invoke('save-file', defaultPath, content),
+  saveParts: (baseName, parts) => ipcRenderer.invoke('save-parts', baseName, parts),
+
   showItemInFolder: (fullPath) => ipcRenderer.invoke('show-item-in-folder', fullPath)
 });

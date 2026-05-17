@@ -29,15 +29,19 @@
     {
       "pattern": ".file-merger-config.json",
       "enabled": true
+    },
+    {
+      "pattern": "LICENSE",
+      "enabled": true
     }
   ],
   "excludeBinary": false,
   "ignoreHidden": false,
   "compressOutput": false,
-  "maxCharsPerPart": 0,
-  "splitPartFooter": "",
+  "maxCharsPerPart": 200000,
+  "splitPartFooter": "请等我继续输入。",
   "whiteListExts": [],
   "maxFileSizeKB": 0,
-  "customFooter": "",
+  "customFooter": "检查代码错误、业务逻辑和安全审计。",
   "outputFileName": "merged-{timestamp}.md"
 }
