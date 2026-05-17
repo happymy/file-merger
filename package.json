@@ -1,6 +1,6 @@
 {
   "name": "file-merger-pro",
-  "version": "2.4.7",
+  "version": "2.4.8",
   "description": "一键将整个目录合并为 Markdown，方便粘贴到 AI 对话",
   "author": "happymy",
   "main": "main.js",

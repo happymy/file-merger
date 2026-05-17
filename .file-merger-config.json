@@ -1,0 +1,43 @@
+{
+  "excludeDirs": [
+    {
+      "pattern": ".git",
+      "enabled": true
+    },
+    {
+      "pattern": ".github",
+      "enabled": true
+    },
+    {
+      "pattern": "node_modules",
+      "enabled": true
+    },
+    {
+      "pattern": "out",
+      "enabled": true
+    }
+  ],
+  "excludeFiles": [
+    {
+      "pattern": ".gitattributes",
+      "enabled": true
+    },
+    {
+      "pattern": ".gitignore",
+      "enabled": true
+    },
+    {
+      "pattern": ".file-merger-config.json",
+      "enabled": true
+    }
+  ],
+  "excludeBinary": false,
+  "ignoreHidden": false,
+  "compressOutput": false,
+  "maxCharsPerPart": 0,
+  "splitPartFooter": "",
+  "whiteListExts": [],
+  "maxFileSizeKB": 0,
+  "customFooter": "",
+  "outputFileName": "merged-{timestamp}.md"
+}
